@@ -1,5 +1,6 @@
 fastapi==0.114.0
 SQLAlchemy==2.0.35
+GeoAlchemy2==0.15.2
 pydantic==2.9.0
 geojson_pydantic==1.1.2
 pydantic_core==2.23.2
