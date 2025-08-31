@@ -33,7 +33,7 @@ Caution:
 
 from backend.api.models.base import Base
 from sqlalchemy import inspect
-from backend.database.session import engine
+from backend.database.session import get_engine
 from backend.api.models.tsunami import TsunamiZone
 from backend.api.models.landslide_zones import LandslideZone
 from backend.api.models.liquefaction_zones import LiquefactionZone
@@ -41,18 +41,19 @@ from backend.api.models.soft_story_properties import SoftStoryProperty
 
 
 def init_db():
-    if check_tables_exist():
-        drop_db()
+    engine = get_engine()
+    if check_tables_exist(engine):
+        drop_db(engine)
     Base.metadata.create_all(bind=engine)
     print("Database tables created.")
 
 
-def drop_db():
+def drop_db(engine):
     Base.metadata.drop_all(bind=engine)
     print("Database tables dropped.")
 
 
-def check_tables_exist():
+def check_tables_exist(engine):
     inspector = inspect(engine)
     tables = inspector.get_table_names()
     return len(tables) > 0

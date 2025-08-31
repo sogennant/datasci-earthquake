@@ -8,6 +8,7 @@ from backend.api.routers import (
     health_api,
 )
 from backend.api.config import settings
+from backend.database.session import warm_up_connection_pool
 import sentry_sdk
 
 
@@ -50,3 +51,15 @@ async def global_exception_handler(request: Request, exc: Exception):
         status_code=500,
         content={"detail": "Internal server error"},
     )
+
+
+@app.on_event("startup")
+async def startup_event():
+    """Warm up resources on startup to reduce cold start latency"""
+    logger.info("Starting up QuakeSafe API...")
+    try:
+        # Warm up database connection pool
+        warm_up_connection_pool()
+        logger.info("Database connection pool warmed up successfully")
+    except Exception as e:
+        logger.warning(f"Failed to warm up database pool: {e}")
