@@ -105,7 +105,7 @@ export default function PerformanceMonitor() {
       maxW="400px"
       zIndex="1000"
     >
-      <VStack align="stretch" spacing="2">
+      <VStack align="stretch">
         <Text fontSize="sm" fontWeight="bold" color="gray.700">
           API Performance Monitor
         </Text>
@@ -118,10 +118,8 @@ export default function PerformanceMonitor() {
         <Box maxH="200px" overflowY="auto">
           {metrics.map((metric, index) => (
             <HStack key={index} justify="space-between" fontSize="xs" py="1">
-              <Text noOfLines={1} maxW="200px">
-                {metric.endpoint}
-              </Text>
-              <HStack spacing="2">
+              <Text maxW="200px">{metric.endpoint}</Text>
+              <HStack>
                 <Text>{metric.responseTime}ms</Text>
                 <Badge
                   size="sm"
