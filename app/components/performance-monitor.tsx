@@ -12,14 +12,11 @@ interface PerformanceMetrics {
 
 export default function PerformanceMonitor() {
   const [metrics, setMetrics] = useState<PerformanceMetrics[]>([]);
-  const [isVisible, setIsVisible] = useState(false);
+  const [isVisible, setIsVisible] = useState(true);
 
   useEffect(() => {
     // Only show in development or when explicitly enabled
-    setIsVisible(
-      process.env.NODE_ENV === "development" ||
-        localStorage.getItem("showPerformanceMonitor") === "true"
-    );
+    setIsVisible(true);
   }, []);
 
   useEffect(() => {
