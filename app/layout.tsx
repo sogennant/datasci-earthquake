@@ -4,6 +4,7 @@ import { Provider } from "@/components/ui/provider";
 import Header from "./components/header";
 import Footer from "./components/footer";
 import { Toaster } from "@/components/ui/toaster";
+import PerformanceMonitor from "./components/performance-monitor";
 
 const manrope = Manrope({
   subsets: ["latin"],
@@ -47,6 +48,7 @@ export default function RootLayout({
           </Flex>
           {/* TODO FIXME: is this Toaster component declared in the right place? */}
           <Toaster />
+          <PerformanceMonitor />
         </Provider>
       </body>
     </html>
