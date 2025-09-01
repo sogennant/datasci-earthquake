@@ -1,5 +1,5 @@
 import logging
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 from backend.api.config import settings
 
@@ -65,7 +65,7 @@ def warm_up_connection_pool():
     try:
         engine = get_engine()
         with engine.connect() as conn:
-            conn.execute("SELECT 1")
+            conn.execute(text("SELECT 1"))
         logging.info("Database connection pool warmed up successfully")
     except Exception as e:
         logging.warning(f"Failed to warm up connection pool: {e}")

@@ -10,7 +10,12 @@ from backend.api.routers import (
 from backend.api.config import settings
 from backend.database.session import warm_up_connection_pool
 import sentry_sdk
+import logging
 
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
+logger = logging.getLogger(__name__)
 
 # Initialize Sentry
 sentry_sdk.init(
@@ -58,7 +63,6 @@ async def startup_event():
     """Warm up resources on startup to reduce cold start latency"""
     logger.info("Starting up QuakeSafe API...")
     try:
-        # Warm up database connection pool
         warm_up_connection_pool()
         logger.info("Database connection pool warmed up successfully")
     except Exception as e:
