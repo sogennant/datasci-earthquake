@@ -5,8 +5,9 @@ from typing import Optional
 from ..tags import Tags
 from sqlalchemy.orm import Session
 from backend.database.session import get_db
-from geoalchemy2.shape import from_shape
-from shapely.geometry import Point
+
+# from geoalchemy2.shape import from_shape
+from shapely.geometry import Point, shape as shapely_shape
 from backend.api.schemas.tsunami_schemas import (
     TsunamiFeature,
     TsunamiFeatureCollection,
@@ -14,6 +15,7 @@ from backend.api.schemas.tsunami_schemas import (
 )
 from backend.api.models.tsunami import TsunamiZone
 import logging
+import json
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
@@ -24,6 +26,24 @@ router = APIRouter(
     prefix="/api/tsunami-zones",
     tags=[Tags.TSUNAMI],
 )
+
+tsunami_geojson_cache = None
+
+
+def load_tsunami_geojson():
+    global tsunami_geojson_cache
+    try:
+        with open("public/data/TsunamiZone.geojson", "r") as f:
+            tsunami_geojson_cache = json.load(f)
+            logger.info("Tsunami GeoJSON loaded into cache")
+            logger.info(tsunami_geojson_cache)
+            return tsunami_geojson_cache
+    except Exception as e:
+        logger.error(f"Failed to load Tsunami GeoJSON: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500, detail="Liquefaction GeoJSON not available"
+        )
+    return tsunami_geojson_cache
 
 
 @router.get("", response_model=TsunamiFeatureCollection)
@@ -40,10 +60,11 @@ async def get_tsunami_zones(db: Session = Depends(get_db)):
     Raises:
         HTTPException: If no zones are found (404 error).
     """
-    tsunami_zones = db.query(TsunamiZone).all()
+    """tsunami_zones = db.query(TsunamiZone).all()
     if not tsunami_zones:
         raise HTTPException(status_code=404, detail="No tsunami zones found")
-    features = [TsunamiFeature.from_sqlalchemy_model(zone) for zone in tsunami_zones]
+    features = [TsunamiFeature.from_sqlalchemy_model(zone) for zone in tsunami_zones]"""
+    features = []
     return TsunamiFeatureCollection(type="FeatureCollection", features=features)
 
 
@@ -82,6 +103,22 @@ async def is_in_tsunami_zone(
         )
 
     logger.info(f"Checking tsunami zone for coordinates: lon={lon}, lat={lat}")
+    # point = from_shape(Point(lon, lat), srid=4326)
+    point = Point(lon, lat)
+
+    geojson_data = load_tsunami_geojson()
+    for feature in geojson_data.get("features", []):
+        polygon = shapely_shape(feature["geometry"])
+        if polygon.contains(point):
+            props = feature.get("properties", {})
+            return IsInTsunamiZoneView(
+                exists=True,
+                last_updated=props.get("update_timestamp"),
+            )
+    return IsInTsunamiZoneView(exists=False, last_updated=None)
+
+
+"""
 
     try:
         point = from_shape(Point(lon, lat), srid=4326)
@@ -113,3 +150,4 @@ async def is_in_tsunami_zone(
             detail=f"Error checking tsunami zone status for coordinates: lon={lon}, lat={lat}, "
             f"error: {str(e)}",
         )
+"""
