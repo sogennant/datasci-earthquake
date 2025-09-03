@@ -8,10 +8,7 @@
   "functions": {
     "api/**": {
       "maxDuration": 20,
-      "memory": 1024,
-      "regions": [
-        "sfo1"
-      ]
+      "memory": 1024
     }
   }
 }
