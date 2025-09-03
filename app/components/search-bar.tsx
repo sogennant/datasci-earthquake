@@ -80,7 +80,8 @@ const SearchBar = ({
 
     onAddressSearch(addressLine);
     onSearchChange(coords);
-    updateHazardData(coords);
+    // Don't call updateHazardData here - it will be called by the useEffect when URL changes
+    // updateHazardData(coords);
 
     const newUrl = `?address=${encodeURIComponent(addressLine)}&lat=${coords[1]}&lon=${coords[0]}`;
     router.push(newUrl, { scroll: false });
