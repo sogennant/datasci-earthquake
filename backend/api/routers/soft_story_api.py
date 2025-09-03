@@ -4,9 +4,9 @@ from fastapi import APIRouter, HTTPException, Depends, Query
 from typing import Optional
 from ..tags import Tags
 from sqlalchemy import and_, func
+from shapely.geometry import Point, shape as shapely_shape
 
 # from geoalchemy2.shape import from_shape
-# from shapely.geometry import Point
 from sqlalchemy.orm import Session
 from backend.database.session import get_db
 
@@ -19,6 +19,8 @@ from backend.api.schemas.soft_story_schemas import (
 from backend.api.models.soft_story_properties import SoftStoryProperty
 import logging
 import json
+import httpx
+import os
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
@@ -39,16 +41,33 @@ soft_story_geojson_cache = None
 
 def load_soft_story_geojson():
     global soft_story_geojson_cache
+    if soft_story_geojson_cache is not None:
+        return soft_story_geojson_cache
+
+    # Try CDN first, fallback to local file
+    from backend.api.config import settings
+
+    cdn_url = settings.next_public_cdn_url
+    if cdn_url:
+        try:
+            with httpx.Client(timeout=10.0) as client:
+                response = client.get(f"{cdn_url}/SoftStoryProperty.geojson")
+                response.raise_for_status()
+                soft_story_geojson_cache = response.json()
+                logger.info("SoftStory GeoJSON loaded from CDN into cache")
+                return soft_story_geojson_cache
+        except Exception as e:
+            logger.warning(f"Failed to load from CDN, trying local file: {e}")
+
+    # Fallback to local file
     try:
         with open("public/data/SoftStoryProperty.geojson", "r") as f:
             soft_story_geojson_cache = json.load(f)
-            logger.info("SoftStory GeoJSON loaded into cache")
-            logger.info(soft_story_geojson_cache)
+            logger.info("SoftStory GeoJSON loaded from local file into cache")
             return soft_story_geojson_cache
     except Exception as e:
         logger.error(f"Failed to load SoftStory GeoJSON: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="SoftStory GeoJSON not available")
-    return soft_story_geojson_cache
 
 
 @router.get("", response_model=SoftStoryFeatureCollection)
@@ -114,7 +133,8 @@ async def is_soft_story(
     """
     if ping:
         logger.info(f"Pinging the is-soft-story endpoint")
-        return IsSoftStoryPropertyView(exists=False, last_updated=None)  # skip DB call
+        # skip DB call
+        return IsSoftStoryPropertyView(exists=False, last_updated=None)
 
     if lon is None or lat is None:
         logger.warning("Missing coordinates in non-ping request")
@@ -124,7 +144,6 @@ async def is_soft_story(
         )
 
     logger.info(f"Checking soft story status for coordinates: lon={lon}, lat={lat}")
-    from shapely.geometry import Point, shape as shapely_shape
 
     point = Point(lon, lat)
     geojson_data = load_soft_story_geojson()

@@ -4,6 +4,7 @@ from fastapi import Depends, HTTPException, APIRouter, Query
 from typing import Optional
 from ..tags import Tags
 from sqlalchemy.orm import Session
+from shapely.geometry import Point, shape as shapely_shape
 
 # from geoalchemy2.shape import from_shape
 from backend.database.session import get_db
@@ -15,6 +16,8 @@ from ..schemas.liquefaction_schemas import (
 from backend.api.models.liquefaction_zones import LiquefactionZone
 import logging
 import json
+import httpx
+import os
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
@@ -31,18 +34,35 @@ liquefaction_geojson_cache = None
 
 def load_liquefaction_geojson():
     global liquefaction_geojson_cache
+    if liquefaction_geojson_cache is not None:
+        return liquefaction_geojson_cache
+
+    # Try CDN first, fallback to local file
+    from backend.api.config import settings
+
+    cdn_url = settings.next_public_cdn_url
+    if cdn_url:
+        try:
+            with httpx.Client(timeout=10.0) as client:
+                response = client.get(f"{cdn_url}/LiquefactionZone.geojson")
+                response.raise_for_status()
+                liquefaction_geojson_cache = response.json()
+                logger.info("Liquefaction GeoJSON loaded from CDN into cache")
+                return liquefaction_geojson_cache
+        except Exception as e:
+            logger.warning(f"Failed to load from CDN, trying local file: {e}")
+
+    # Fallback to local file
     try:
         with open("public/data/LiquefactionZone.geojson", "r") as f:
             liquefaction_geojson_cache = json.load(f)
-            logger.info("Liquefaction GeoJSON loaded into cache")
-            logger.info(liquefaction_geojson_cache)
+            logger.info("Liquefaction GeoJSON loaded from local file into cache")
             return liquefaction_geojson_cache
     except Exception as e:
         logger.error(f"Failed to load Liquefaction GeoJSON: {e}", exc_info=True)
         raise HTTPException(
             status_code=500, detail="Liquefaction GeoJSON not available"
         )
-    return liquefaction_geojson_cache
 
 
 @router.get("", response_model=LiquefactionFeatureCollection)
@@ -192,7 +212,6 @@ async def is_in_liquefaction_zone(
         )
 
     logger.info(f"Checking liquefaction zone for coordinates: lon={lon}, lat={lat}")
-    from shapely.geometry import Point, shape as shapely_shape
 
     point = Point(lon, lat)
 

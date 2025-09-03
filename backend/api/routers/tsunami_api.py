@@ -16,6 +16,8 @@ from backend.api.schemas.tsunami_schemas import (
 from backend.api.models.tsunami import TsunamiZone
 import logging
 import json
+import httpx
+import os
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
@@ -32,16 +34,33 @@ tsunami_geojson_cache = None
 
 def load_tsunami_geojson():
     global tsunami_geojson_cache
+    if tsunami_geojson_cache is not None:
+        return tsunami_geojson_cache
+
+    # Try CDN first, fallback to local file
+    from backend.api.config import settings
+
+    cdn_url = settings.next_public_cdn_url
+    if cdn_url:
+        try:
+            with httpx.Client(timeout=10.0) as client:
+                response = client.get(f"{cdn_url}/TsunamiZone.geojson")
+                response.raise_for_status()
+                tsunami_geojson_cache = response.json()
+                logger.info("Tsunami GeoJSON loaded from CDN into cache")
+                return tsunami_geojson_cache
+        except Exception as e:
+            logger.warning(f"Failed to load from CDN, trying local file: {e}")
+
+    # Fallback to local file
     try:
         with open("public/data/TsunamiZone.geojson", "r") as f:
             tsunami_geojson_cache = json.load(f)
-            logger.info("Tsunami GeoJSON loaded into cache")
-            logger.info(tsunami_geojson_cache)
+            logger.info("Tsunami GeoJSON loaded from local file into cache")
             return tsunami_geojson_cache
     except Exception as e:
         logger.error(f"Failed to load Tsunami GeoJSON: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Tsunami GeoJSON not available")
-    return tsunami_geojson_cache
 
 
 @router.get("", response_model=TsunamiFeatureCollection)
@@ -90,7 +109,8 @@ async def is_in_tsunami_zone(
     """
     if ping:
         logger.info(f"Pinging the is-in-tsunami-zone endpoint")
-        return IsInTsunamiZoneView(exists=False, last_updated=None)  # skip DB call
+        # skip DB call
+        return IsInTsunamiZoneView(exists=False, last_updated=None)
 
     if lon is None or lat is None:
         logger.warning("Missing coordinates in non-ping request")
