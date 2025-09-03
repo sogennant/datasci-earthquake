@@ -48,7 +48,6 @@ export default function RootLayout({
           </Flex>
           {/* TODO FIXME: is this Toaster component declared in the right place? */}
           <Toaster />
-          <PerformanceMonitor />
         </Provider>
       </body>
     </html>
