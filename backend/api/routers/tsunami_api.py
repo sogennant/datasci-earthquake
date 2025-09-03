@@ -40,9 +40,7 @@ def load_tsunami_geojson():
             return tsunami_geojson_cache
     except Exception as e:
         logger.error(f"Failed to load Tsunami GeoJSON: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=500, detail="Liquefaction GeoJSON not available"
-        )
+        raise HTTPException(status_code=500, detail="Tsunami GeoJSON not available")
     return tsunami_geojson_cache
 
 
@@ -60,11 +58,10 @@ async def get_tsunami_zones(db: Session = Depends(get_db)):
     Raises:
         HTTPException: If no zones are found (404 error).
     """
-    """tsunami_zones = db.query(TsunamiZone).all()
+    tsunami_zones = db.query(TsunamiZone).all()
     if not tsunami_zones:
         raise HTTPException(status_code=404, detail="No tsunami zones found")
-    features = [TsunamiFeature.from_sqlalchemy_model(zone) for zone in tsunami_zones]"""
-    features = []
+    features = [TsunamiFeature.from_sqlalchemy_model(zone) for zone in tsunami_zones]
     return TsunamiFeatureCollection(type="FeatureCollection", features=features)
 
 

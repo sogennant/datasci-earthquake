@@ -4,11 +4,13 @@ from fastapi import APIRouter, HTTPException, Depends, Query
 from typing import Optional
 from ..tags import Tags
 from sqlalchemy import and_, func
-from geoalchemy2.shape import from_shape
-from shapely.geometry import Point
+
+# from geoalchemy2.shape import from_shape
+# from shapely.geometry import Point
 from sqlalchemy.orm import Session
 from backend.database.session import get_db
-from geoalchemy2 import functions as geo_func
+
+# from geoalchemy2 import functions as geo_func
 from backend.api.schemas.soft_story_schemas import (
     SoftStoryFeature,
     SoftStoryFeatureCollection,
@@ -16,6 +18,7 @@ from backend.api.schemas.soft_story_schemas import (
 )
 from backend.api.models.soft_story_properties import SoftStoryProperty
 import logging
+import json
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
@@ -30,6 +33,22 @@ router = APIRouter(
 STATUS_WORK_COMPLETE_LOWERCASE = (
     "work complete, cfc issued"  # Work Complete, CFC Issued
 )
+
+soft_story_geojson_cache = None
+
+
+def load_soft_story_geojson():
+    global soft_story_geojson_cache
+    try:
+        with open("public/data/SoftStoryProperty.geojson", "r") as f:
+            soft_story_geojson_cache = json.load(f)
+            logger.info("SoftStory GeoJSON loaded into cache")
+            logger.info(soft_story_geojson_cache)
+            return soft_story_geojson_cache
+    except Exception as e:
+        logger.error(f"Failed to load SoftStory GeoJSON: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="SoftStory GeoJSON not available")
+    return soft_story_geojson_cache
 
 
 @router.get("", response_model=SoftStoryFeatureCollection)
@@ -105,7 +124,20 @@ async def is_soft_story(
         )
 
     logger.info(f"Checking soft story status for coordinates: lon={lon}, lat={lat}")
+    from shapely.geometry import Point, shape as shapely_shape
 
+    point = Point(lon, lat)
+    geojson_data = load_soft_story_geojson()
+    for feature in geojson_data.get("features", []):
+        dataset_point = shapely_shape(feature["geometry"])
+        if point.equals(dataset_point):
+            props = feature.get("properties", {})
+            return IsSoftStoryPropertyView(
+                exists=True,
+                last_updated=props.get("update_timestamp"),
+            )
+    return IsSoftStoryPropertyView(exists=False, last_updated=None)
+    """
     try:
         point = from_shape(Point(lon, lat), srid=4326)
         property = (
@@ -142,3 +174,4 @@ async def is_soft_story(
             detail=f"Error checking soft story status for coordinates: lon={lon}, lat={lat}, "
             f"error: {str(e)}",
         )
+    """

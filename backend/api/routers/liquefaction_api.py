@@ -4,8 +4,8 @@ from fastapi import Depends, HTTPException, APIRouter, Query
 from typing import Optional
 from ..tags import Tags
 from sqlalchemy.orm import Session
-from geoalchemy2.shape import from_shape
-from shapely.geometry import Point
+
+# from geoalchemy2.shape import from_shape
 from backend.database.session import get_db
 from ..schemas.liquefaction_schemas import (
     LiquefactionFeature,
@@ -14,6 +14,7 @@ from ..schemas.liquefaction_schemas import (
 )
 from backend.api.models.liquefaction_zones import LiquefactionZone
 import logging
+import json
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
@@ -24,6 +25,24 @@ router = APIRouter(
     prefix="/api/liquefaction-zones",
     tags=[Tags.LIQUEFACTION],
 )
+
+liquefaction_geojson_cache = None
+
+
+def load_liquefaction_geojson():
+    global liquefaction_geojson_cache
+    try:
+        with open("public/data/LiquefactionZone.geojson", "r") as f:
+            liquefaction_geojson_cache = json.load(f)
+            logger.info("Liquefaction GeoJSON loaded into cache")
+            logger.info(liquefaction_geojson_cache)
+            return liquefaction_geojson_cache
+    except Exception as e:
+        logger.error(f"Failed to load Liquefaction GeoJSON: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500, detail="Liquefaction GeoJSON not available"
+        )
+    return liquefaction_geojson_cache
 
 
 @router.get("", response_model=LiquefactionFeatureCollection)
@@ -173,8 +192,24 @@ async def is_in_liquefaction_zone(
         )
 
     logger.info(f"Checking liquefaction zone for coordinates: lon={lon}, lat={lat}")
+    from shapely.geometry import Point, shape as shapely_shape
 
-    try:
+    point = Point(lon, lat)
+
+    geojson_data = load_liquefaction_geojson()
+    for feature in geojson_data.get("features", []):
+        polygon = shapely_shape(feature["geometry"])
+        if polygon.contains(point):
+            props = feature.get("properties", {})
+            return InLiquefactionZoneView(
+                exists=True,
+                last_updated=props.get("update_timestamp"),
+                liq=props.get("liq"),
+            )
+    return InLiquefactionZoneView(exists=False, last_updated=None, liq=None)
+
+
+"""    try:
         point = from_shape(Point(lon, lat), srid=4326)
         zone = (
             db.query(LiquefactionZone)
@@ -205,3 +240,4 @@ async def is_in_liquefaction_zone(
             detail=f"Error checking liquefaction zone status for coordinates: lon={lon}, lat={lat}, "
             f"error: {str(e)}",
         )
+"""
