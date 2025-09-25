@@ -120,7 +120,7 @@ jobs:
         run: docker compose build
 
       - name: Start Services
-        run: docker compose up -d --wait --wait-timeout 90
+        run: docker compose up -d --wait --wait-timeout 120
 
       - name: Docker Logs 
         if: always()  
@@ -133,7 +133,7 @@ jobs:
           docker logs my_postgis_db || echo "No logs found"
 
       - name: Run Backend Tests
-        run: docker compose run --rm backend /.venv/bin/python -m pytest backend -v
+        run: docker compose run --rm backend pytest backend -v
 
       - name: Run Frontend Tests
         run: docker compose run --rm frontend npm test

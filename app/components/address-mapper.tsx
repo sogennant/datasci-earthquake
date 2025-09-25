@@ -145,6 +145,7 @@ const AddressMapper: React.FC<AddressMapperProps> = ({
       setCoordinates(null);
       setSearchedAddress(null);
       setAddressHazardData({});
+      setSearchComplete(false);
       coordinatesRef.current = null;
     }
   }, [searchParams, updateHazardData]);
@@ -195,7 +196,15 @@ const AddressMapper: React.FC<AddressMapperProps> = ({
         isSearchComplete={isSearchComplete}
         onSearchChange={handleSearchChange}
       />
-      <Box w="full" h={{ base: "1400px", md: "1000px" }} m="auto">
+      <Box
+        w="full"
+        h={{
+          base: "980px",
+          md: "685px",
+          "2xl": "765px",
+        }}
+        m="auto"
+      >
         <Box h="100%" overflow="hidden" position="relative">
           <Box zIndex={10} top={0} position="absolute">
             {currentView === "desktop" ? (
