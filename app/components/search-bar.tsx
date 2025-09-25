@@ -154,7 +154,7 @@ const SearchBar = ({ onSearchChange }: SearchBarProps) => {
         <Text
           position="absolute"
           bottom={0}
-          textStyle="textSmall"
+          textStyle="textXSmall"
           color="white"
         >
           {inputAddress.length < characterCap
